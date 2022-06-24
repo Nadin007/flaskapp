@@ -1,6 +1,9 @@
 from datetime import datetime as dt
-from flaskblog import db, login_manager
+from flask import jsonify
+from flask_jwt_extended import create_access_token, decode_token
+from flaskblog import db, login_manager, app
 from flask_login import UserMixin
+from jwt import ExpiredSignatureError, InvalidTokenError
 
 
 @login_manager.user_loader
@@ -15,6 +18,28 @@ class User(db.Model, UserMixin):
     image_file = db.Column(db.String(20), nullable=False, default='default.jpg')
     password = db.Column(db.String(60), nullable=False)
     posts = db.relationship('Post', backref='author', lazy=True)
+
+    def get_reset_token(self, expires_sec=1800):
+        reset_token = create_access_token(identity=str(self.id), expires_delta=expires_sec)
+        return reset_token.decode('utf-8')
+
+    @staticmethod
+    def verify_reset_token(token):
+        """
+        Validates the auth token
+        :param auth_token:
+        :return: user_id:integer
+        """
+        try:
+            data = decode_token(token, app.config.get('SECRET_KEY'), allow_expired=False)
+            person = User.query.filter_by(user_id=data["identity"]).first()
+            if person:
+                return person
+            return None
+        except ExpiredSignatureError:
+            return jsonify({'message': 'Token expired, log in again'}), 403
+        except InvalidTokenError:
+            return jsonify({'message': 'Invalid token. Please log in again.'}), 403
 
     def __repr__(self) -> str:
         return f"User('{self.username}', '{self.email}', '{self.image_file}')"
