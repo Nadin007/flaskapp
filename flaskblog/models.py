@@ -1,9 +1,11 @@
 from datetime import datetime as dt
-from flask import jsonify
+
+from flask import current_app, jsonify
 from flask_jwt_extended import create_access_token, decode_token
-from flaskblog import db, login_manager, app
 from flask_login import UserMixin
 from jwt import ExpiredSignatureError, InvalidTokenError
+
+from flaskblog import db, login_manager
 
 
 @login_manager.user_loader
@@ -31,7 +33,7 @@ class User(db.Model, UserMixin):
         :return: user_id:integer
         """
         try:
-            data = decode_token(token, app.config.get('SECRET_KEY'), allow_expired=False)
+            data = decode_token(token, current_app.config.get('SECRET_KEY'), allow_expired=False)
             person = User.query.filter_by(user_id=data["identity"]).first()
             if person:
                 return person
